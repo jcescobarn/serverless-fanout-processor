@@ -1,0 +1,44 @@
+name: "Deploy Infra"
+
+on:
+  push:
+    branches:
+    - main
+    paths:
+    - "terraform/**"
+  workflow_dispatch:
+
+
+jobs:
+  deploy-infra:
+    name: deploy Infra (Terraform)
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: us-east-1
+
+    - name: Configure "terraform/**"
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "latest"
+
+    - name: zip lambda codes
+      run: |
+        zip -r src-upload-service.zip src_upload/
+        zip -r src-process-service.zip src_process/
+
+    - name: execute terraform
+      working-directory: ./terraform
+      run: |
+        terraform init
+        terraform apply -auto-approve --var-file=terraform.tfvars
